@@ -50,26 +50,30 @@ pxr_library(usdSkelImaging
 )
 
 # Build tests
-pxr_build_test(testUsdSkelImagingChanges
+pxr_build_test(testUsdSkelImagingSkeletonAdapter
     LIBRARIES
         usdImaging
         usdShade
+        usdGeom
         usdSkel
         usd
         sdf
         hd
         tf
+        gf
+        arch
     CPPFILES
-        testenv/testUsdSkelImagingChanges.cpp
+        testenv/testUsdSkelImagingSkeletonAdapter.cpp
 )
 
-# Register tests only when they are supported.
-if (BUILD_SHARED_LIBS)
-    pxr_register_test(testUsdSkelImagingChanges
-        COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdSkelImagingChanges"
-        EXPECTED_RETURN_CODE 0
-        TESTENV testenv/testUsdSkelImagingChanges
-        ENV
-        TF_FATAL_VERIFY=0
-    )
-endif()
+# Install (copy test assets and baselines)
+pxr_install_test_dir(
+    SRC testenv/testUsdSkelImagingSkeletonAdapter
+    DEST testUsdSkelImagingSkeletonAdapter
+)
+
+# Register tests
+pxr_register_test(testUsdSkelImagingSkeletonAdapter
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdSkelImagingSkeletonAdapter"
+    EXPECTED_RETURN_CODE 0
+)

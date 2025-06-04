@@ -165,12 +165,36 @@ UsdSkelImagingSkeletonAdapter::Populate(
             // 1. A skinning computation that computes the skinned points, and
             SdfPath compPath = _GetSkinningComputationPath(skinnedPrimPath);
 
-            TF_DEBUG(USDIMAGING_COMPUTATIONS).Msg(
-                "[SkeletonAdapter::Populate] Inserting "
-                "computation %s for skinned prim %s\n",
-                compPath.GetText(), skinnedPrimPath.GetText());
+            for (ComputationType computationType : {ComputationType::Points, ComputationType::Normals}) {
+                // 1. A skinning computation that computes the skinned points or skinned normals.
+                SdfPath compPath = _GetSkinningComputationPath(skinnedPrimPath, computationType);
 
-            index->InsertSprim(
+                TF_DEBUG(USDIMAGING_COMPUTATIONS).Msg(
+                    "[SkeletonAdapter::Populate] Inserting "
+                    "computation %s for skinned prim %s\n",
+                    compPath.GetText(), skinnedPrimPath.GetText());
+
+                index->InsertSprim(
+                        HdPrimTypeTokens->extComputation,
+                        compPath,
+                        skinnedPrim,
+                        shared_from_this());
+
+                // 2. An aggregator computation that aggregates inputs that
+                //    typically don't vary with time. This is necessary because
+                //    Hydra ExtComputations does not track dirtiness per input.
+                //    The aggregator computation is especially useful for GPU
+                //    compute and avoids re-uploading inputs that don't vary to the 
+                //    GPU.
+                SdfPath aggrCompPath =
+                    _GetSkinningInputAggregatorComputationPath(skinnedPrimPath, computationType);
+
+                TF_DEBUG(USDIMAGING_COMPUTATIONS).Msg(
+                    "[SkeletonAdapter::Populate] Inserting "
+                    "aggregator computation %s for skinned prim %s\n",
+                    aggrCompPath.GetText(), skinnedPrimPath.GetText());
+
+                index->InsertSprim(
                     HdPrimTypeTokens->extComputation,
                     compPath,
                     skinnedPrim,
@@ -804,6 +828,7 @@ UsdSkelImagingSkeletonAdapter::InvokeComputation(
     HdExtComputationContext* context)
 {
     HD_TRACE_FUNCTION();
+
     TfToken skinningMethod = UsdSkelTokens->classicLinear;
     if (const _SkinnedPrimData* const skinnedPrimData =
             _GetSkinnedPrimData(cachePath.GetParentPath())) {
@@ -1047,7 +1072,7 @@ UsdSkelImagingSkeletonAdapter::GetExtComputationSceneInputNames(
         // Scene inputs
         if (skinningMethod == UsdSkelTokens->classicLinear) {
 
-            static TfTokenVector sceneInputNames({
+            static const TfTokenVector sceneInputNames({
                     // From the skinned prim
                     UsdSkelImagingExtComputationLegacyInputNameTokens
                         ->primWorldToLocal,
@@ -1075,7 +1100,7 @@ UsdSkelImagingSkeletonAdapter::GetExtComputationSceneInputNames(
             // This will result in additional data being uploaded to the GPU
             // for the DQS case on every time step since these are scene inputs.
             // This should be revisited if/when this becomes a performance issue.
-            static TfTokenVector sceneInputNames({
+            static const TfTokenVector sceneInputNames({
                     // From the skinned prim
                     UsdSkelImagingExtComputationLegacyInputNameTokens
                         ->primWorldToLocal,
@@ -1101,27 +1126,32 @@ UsdSkelImagingSkeletonAdapter::GetExtComputationSceneInputNames(
 
     if (_IsSkinningInputAggregatorComputationPath(cachePath)) {
         // ExtComputation inputs
- 	// Scene inputs for the aggregator computation.
-        static TfTokenVector inputNames({
-            // Data authored on the skinned prim as primvars.
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->restPoints,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->geomBindXform,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->influences,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->numInfluencesPerComponent,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->hasConstantInfluences,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->blendShapeOffsets,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->blendShapeOffsetRanges,
-            UsdSkelImagingExtAggregatorComputationInputNameTokens
-                ->numBlendShapeOffsetRanges
-        });
-        return inputNames;
+        // Scene inputs for the aggregator computation.
+        if (isPointsInputAggregator) {
+            static const TfTokenVector pointsInputNames({
+                // Data authored on the skinned prim as primvars.
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->restPoints,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->geomBindXform,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->influences,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->numInfluencesPerComponent,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->hasConstantInfluences,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->blendShapeOffsets,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->blendShapeOffsetRanges,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->numBlendShapeOffsetRanges
+            });
+            return pointsInputNames;
+        } else {
+            static const TfTokenVector normalsInputNames({
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->restNormals,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->geomBindXform,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->influences,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->numInfluencesPerComponent,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->hasConstantInfluences,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->faceVertexIndices,
+                UsdSkelImagingExtAggregatorComputationInputNameTokens->hasFaceVaryingNormals
+            });
+            return normalsInputNames;
+        }
     }  
 
     return BaseAdapter::GetExtComputationSceneInputNames(cachePath);;
@@ -2207,7 +2237,6 @@ UsdSkelImagingSkeletonAdapter::GetExtComputationKernel(
 
     return BaseAdapter::GetExtComputationKernel(prim, cachePath, 
                 instancerContext);
-
 }
 
 void
