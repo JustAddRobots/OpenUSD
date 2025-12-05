@@ -441,6 +441,11 @@ private:
                               VtVec4fArray* skinningDualQuats,
                               ComputationType computationType);
 
+
+    /// Returns the sample time offset that should be reported for computation
+    /// inputs which are not time-varying.
+    double _GetDefaultSampleTime(UsdTimeCode time);
+
     // ---------------------------------------------------------------------- //
     /// Populated skeleton state
     // ---------------------------------------------------------------------- //

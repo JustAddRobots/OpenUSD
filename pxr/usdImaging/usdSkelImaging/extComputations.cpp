@@ -326,7 +326,7 @@ _InvokeSkinningComputationNormals(
                 ->hasConstantInfluences);
     const VtValue primWorldToLocalValue =
         ctx->GetInputValue(
-            UsdSkelImagingExtComputationInputNameTokens
+            UsdSkelImagingExtComputationLegacyInputNameTokens
                 ->primWorldToLocal);
     const VtValue skinningXformsValue =
         ctx->GetInputValue(
@@ -334,7 +334,7 @@ _InvokeSkinningComputationNormals(
                 ->skinningXforms);
     const VtValue skelLocalToWorldValue =
         ctx->GetInputValue(
-            UsdSkelImagingExtComputationInputNameTokens
+            UsdSkelImagingExtComputationLegacyInputNameTokens
                 ->skelLocalToWorld);
     const VtValue faceVertexIndicesValue =
         ctx->GetInputValue(

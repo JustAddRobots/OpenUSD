@@ -1370,7 +1370,7 @@ HdStMesh::_PopulateVertexPrimvars(HdSceneDelegate *sceneDelegate,
                     if (source->GetName() == HdTokens->normals) {
                         isNormalsComputedPrimvar = true;
                         _sceneNormalsInterpolation = interpolation;
-                        _sceneNormals = true;
+                        _sceneNormalsFromPrimvars = true;
                     }
                 }
             }
@@ -1398,6 +1398,10 @@ HdStMesh::_PopulateVertexPrimvars(HdSceneDelegate *sceneDelegate,
 
         // Track primvars that are skipped because they have zero elements
         HdPrimvarDescriptorVector zeroElementPrimvars;
+
+        // If any primvars use doubles, we need to know if the Hgi backend supports
+        // these, or if they need to be converted to floats.
+        const bool doublesSupported = _GetDoubleSupport(resourceRegistry);
 
         // Track index to identify varying primvars.
         int i = 0;
@@ -1574,6 +1578,10 @@ HdStMesh::_PopulateVertexPrimvars(HdSceneDelegate *sceneDelegate,
                         &computations, HdSt_MeshTopology::INTERPOLATE_VERTEX);
             }
         }
+
+        // If any primvars use doubles, we need to know if the Hgi backend supports
+        // these, or if they need to be converted to floats.
+        const bool doublesSupported = _GetDoubleSupport(resourceRegistry);
 
         // Check primvars
         HdPrimvarsSchema primvarsSchema =
@@ -2010,7 +2018,7 @@ HdStMesh::_PopulateFaceVaryingPrimvars(HdSceneDelegate *sceneDelegate,
                 if (source->GetName() == HdTokens->normals) {
                     isNormalsComputedPrimvar = true;
                     _sceneNormalsInterpolation = HdInterpolationFaceVarying;
-                    _sceneNormals = true;
+                    _sceneNormalsFromPrimvars = true;
                 }
             }
         }
@@ -2067,9 +2075,9 @@ HdStMesh::_PopulateFaceVaryingPrimvars(HdSceneDelegate *sceneDelegate,
                     continue;
                 }
                 _sceneNormalsInterpolation = HdInterpolationFaceVarying;
-                _sceneNormals = true;
+                _sceneNormalsFromPrimvars = true;
             } else if (source->GetName() == HdTokens->displayOpacity) {
-                _displayOpacity = true;
+                _displayOpacityFromPrimvars = true;
             }
 
             int channel = 0;
