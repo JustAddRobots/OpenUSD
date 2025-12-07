@@ -1014,7 +1014,7 @@ BOOST = Dependency("boost", InstallBoost, *BOOST_VERSION_FILES)
 ############################################################
 # Intel oneTBB
 
-ONETBB_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.12.0.zip"
+ONETBB_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.13.0.zip"
 
 def InstallOneTBB(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(ONETBB_URL, context, force)):
@@ -1215,6 +1215,9 @@ JPEG_URL = "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.zip"
 
 def InstallJPEG(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(JPEG_URL, context, force)):
+        PatchFile("CMakeLists.txt",
+                  [("cmake_minimum_required(VERSION 2.8.12)",
+                    "cmake_minimum_required(VERSION 3.5)")])
         extraJPEGArgs = buildArgs
         if not which("nasm"):
             extraJPEGArgs.append("-DWITH_SIMD=FALSE")
@@ -1244,8 +1247,11 @@ def InstallTIFF(context, force, buildArgs):
         # the tools we've just elided.
         PatchFile("CMakeLists.txt", 
                    [("add_subdirectory(tools)", "# add_subdirectory(tools)"),
-                    ("add_subdirectory(test)", "# add_subdirectory(test)")])
-
+                    ("add_subdirectory(test)", "# add_subdirectory(test)"),
+                    ("cmake_minimum_required(VERSION 2.8.9)",
+                     "cmake_minimum_required(VERSION 3.10)"),
+                    ("cmake_policy(VERSION 2.8.9)",
+                     "cmake_policy(VERSION 3.5)")])
         # The libTIFF CMakeScript says the ld-version-script 
         # functionality is only for compilers using GNU ld on 
         # ELF systems or systems which provide an emulation; therefore
@@ -1338,6 +1344,9 @@ if MacOS():
 
 def InstallBLOSC(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(BLOSC_URL, context, force)):
+        PatchFile("CMakeLists.txt",
+                  [("cmake_minimum_required(VERSION 2.8.12)",
+                    "cmake_minimum_required(VERSION 3.5)")])
         # MacOS we can use the built in Zlib instead of the external one.
         macArgs = ["-DPREFER_EXTERNAL_ZLIB=ON"]
         if MacOS() and apple_utils.IsTargetArm(context):
@@ -1360,6 +1369,9 @@ def InstallOpenVDB(context, force, buildArgs):
         # several major versions ahead of what we currently use.
         PatchFile("openvdb/openvdb/tree/NodeManager.h",
                   [("OpT::template eval", "OpT::eval")])
+        PatchFile("CMakeLists.txt",
+                  [("cmake_minimum_required(VERSION 3.18)",
+                    "cmake_minimum_required(VERSION 3.5)")])
 
         # Replace BOOST_STATIC_ASSERT to workaround an "identifier not found"
         # build failure on Windows with Visual Studio 2022. This change already
@@ -1452,10 +1464,13 @@ OPENIMAGEIO = Dependency("OpenImageIO", InstallOpenImageIO,
 ############################################################
 # OpenColorIO
 
-OCIO_URL = "https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.2.1.zip"
+OCIO_URL = "https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.5.0.zip"
 
 def InstallOpenColorIO(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(OCIO_URL, context, force)):
+        PatchFile("CMakeLists.txt",
+                  [("cmake_minimum_required(VERSION 3.13)",
+                    "cmake_minimum_required(VERSION 3.10)")])
         extraArgs = ['-DOCIO_BUILD_APPS=OFF',
                      '-DOCIO_BUILD_DOCS=OFF',
                      '-DOCIO_BUILD_TESTS=OFF',
@@ -1580,6 +1595,11 @@ ALEMBIC_URL = "https://github.com/alembic/alembic/archive/refs/tags/1.8.5.zip"
 
 def InstallAlembic(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(ALEMBIC_URL, context, force)):
+        PatchFile("CMakeLists.txt",
+                  [("CMAKE_MINIMUM_REQUIRED(VERSION 3.13)",
+                    "CMAKE_MINIMUM_REQUIRED(VERSION 3.5)"),
+                   ("CMAKE_POLICY(SET CMP0042 OLD)",
+                    "CMAKE_POLICY(SET CMP0042 NEW)")])
         cmakeOptions = ['-DUSE_BINARIES=OFF', '-DUSE_TESTS=OFF', '-DUSE_HDF5=OFF']
         cmakeOptions += buildArgs
 
@@ -1605,7 +1625,7 @@ DRACO = Dependency("Draco", InstallDraco, "include/draco/compression/decode.h")
 ############################################################
 # MaterialX
 
-MATERIALX_URL = "https://github.com/AcademySoftwareFoundation/MaterialX/archive/v1.39.3.zip"
+MATERIALX_URL = "https://github.com/AcademySoftwareFoundation/MaterialX/archive/v1.39.2.zip"
 
 def InstallMaterialX(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(MATERIALX_URL, context, force)):
